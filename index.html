@@ -298,7 +298,7 @@
             font-weight: 600;
             font-size: var(--size, 16px);
             white-space: nowrap;
-            animation: floatBlessing var(--duration, 5.2s) linear forwards;
+            animation: floatBlessing var(--duration, 9s) linear forwards;
             box-shadow: 0 8px 28px rgba(0,0,0,0.18);
         }
 
@@ -659,16 +659,10 @@
                 setTimeout(createFirework, i * 260);
             }
 
-            for (let i = 0; i < 8; i += 1) {
-                setTimeout(createBlessing, i * 160);
-            }
+            createBlessing();
 
             birthdayFireworkTimer = setInterval(createFirework, 1200);
-            birthdayBlessingTimer = setInterval(() => {
-                createBlessing();
-                setTimeout(createBlessing, 180);
-                setTimeout(createBlessing, 360);
-            }, 720);
+            birthdayBlessingTimer = setInterval(createBlessing, 3600);
         }
 
         async function playBirthdayMusic() {
@@ -755,7 +749,7 @@
         function createBlessing() {
             const blessing = document.createElement("div");
             const colors = ["rgba(255,255,255,0.20)", "rgba(255,234,167,0.22)", "rgba(116,185,255,0.22)", "rgba(85,239,196,0.20)", "rgba(253,121,168,0.22)"];
-            const duration = 4.4 + Math.random() * 2.4;
+            const duration = 8 + Math.random() * 2.5;
             blessing.className = "blessing";
             blessing.innerText = blessingMessages[Math.floor(Math.random() * blessingMessages.length)];
             blessing.style.left = `${12 + Math.random() * 76}%`;
@@ -825,8 +819,8 @@
                 setTimeout(createFirework, i * 110);
             }
 
-            for (let i = 0; i < 24; i += 1) {
-                setTimeout(createBlessing, i * 90);
+            for (let i = 0; i < 6; i += 1) {
+                setTimeout(createBlessing, i * 2400);
             }
         }
 
