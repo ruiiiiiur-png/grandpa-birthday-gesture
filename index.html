@@ -403,8 +403,8 @@
                     <div class="cake-top"></div>
                     <div class="cake-body"></div>
                 </div>
-                <h1 class="birthday-title">生日快乐！</h1>
-                <p id="birthday-message" class="birthday-message">外公，吹一下蜡烛，许个愿吧。</p>
+                <h1 class="birthday-title">则明外公生日快乐！</h1>
+                <p id="birthday-message" class="birthday-message">农历六月初八，祝则明外公生日快乐。</p>
                 <button id="music-button" type="button">播放生日歌</button>
             </div>
         </div>
@@ -464,7 +464,7 @@
             "第七次，惊喜越来越近了。",
             "第八次，再来两下就揭晓。",
             "第九次，最后一次准备好了吗？",
-            "生日快乐！"
+            "则明外公生日快乐！"
         ];
         const shapeStyles = [
             { name: "圆形", color: "#3498db", radius: "50%", clipPath: "none" },
@@ -479,25 +479,27 @@
             { name: "蛋糕", color: "#ff7675", radius: "24px", clipPath: "none" }
         ];
         const blessingMessages = [
-            "祝外公身体健康，笑口常开",
+            "祝则明外公身体健康，笑口常开",
+            "农历六月初八，愿今天满是欢喜",
             "琴棋书画样样有雅兴",
-            "愿外公天天都有好心情",
+            "愿则明外公天天都有好心情",
             "一曲口琴，吹出满屋春风",
             "剪出精彩视频，留下美好时光",
             "花花草草都陪外公开心长寿",
             "书画有风骨，日子有温度",
-            "祝外公福如东海，寿比南山",
+            "祝则明外公福如东海，寿比南山",
             "愿每一朵花都替我们祝福您",
             "口琴一响，快乐登场",
             "镜头记录热爱，岁月收藏笑容",
-            "愿外公的生活像花园一样热闹",
+            "愿则明外公的生活像花园一样热闹",
             "琴声悠扬，棋局有趣，书画生香",
-            "祝外公心想事成，福寿安康",
+            "祝则明外公心想事成，福寿安康",
             "愿您每天都有新作品、新灵感",
             "花开四季，幸福常在",
             "我们都爱您",
             "愿今天的惊喜被剪进最美的视频里",
-            "祝外公越活越精神，越过越开心"
+            "祝则明外公越活越精神，越过越开心",
+            "六月初八，愿福气和花香一起到来"
         ];
 
         const visionSources = [
@@ -638,7 +640,7 @@
 
             birthdayStarted = true;
             birthdayOverlay.classList.add("show");
-            birthdayMessage.innerText = "外公，请先双手合十，许个愿。";
+            birthdayMessage.innerText = "则明外公，请先双手合十，许个生日愿望。";
             musicButton.style.display = "inline-block";
             musicButton.innerText = "播放生日歌";
             playBirthdayMusic();
@@ -761,7 +763,7 @@
 
             if (!handLandmarks || handLandmarks.length < 2) {
                 prayerFrameCount = 0;
-                birthdayMessage.innerText = "外公，请先双手合十，许个愿。";
+                birthdayMessage.innerText = "则明外公，请先双手合十，许个生日愿望。";
                 return;
             }
 
@@ -779,12 +781,12 @@
                 birthdayMessage.innerText = "检测到双手合十了，保持一下...";
             } else {
                 prayerFrameCount = 0;
-                birthdayMessage.innerText = "把两只手靠近，双手合十许个愿。";
+                birthdayMessage.innerText = "把两只手靠近，双手合十，为农历六月初八许个愿。";
             }
 
             if (prayerFrameCount >= prayerConfirmFrames) {
                 prayerConfirmed = true;
-                birthdayMessage.innerText = "愿望已悄悄记下，现在吹蜡烛吧。";
+                birthdayMessage.innerText = "则明外公的愿望已悄悄记下，现在吹蜡烛吧。";
                 gestureStatus.innerText = "可以吹蜡烛";
                 gestureStatus.style.backgroundColor = "#00cec9";
             }
@@ -797,7 +799,7 @@
 
             candleBlown = true;
             candleFlame.classList.add("out");
-            birthdayMessage.innerText = "愿望已收到，祝外公心想事成、福寿安康！";
+            birthdayMessage.innerText = "愿望已收到，祝则明外公心想事成、福寿安康！";
             gestureStatus.innerText = "愿望已收到";
             gestureStatus.style.backgroundColor = "#00cec9";
 
