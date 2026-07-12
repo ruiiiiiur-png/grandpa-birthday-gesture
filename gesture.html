@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediaPipe 手势交互页面</title>
+    <!-- MediaPipe 会在脚本中动态加载，便于 CDN 失败时自动切换备用地址 -->
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* 左侧面板：控制与摄像头画面 */
+        #left-panel {
+            width: 360px;
+            padding: 20px;
+            background-color: #1e1e1e;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 4/3;
+        }
+
+        #webcam {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* 镜像翻转，更符合人的直觉 */
+        }
+
+        #output_canvas {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            transform: scaleX(-1); /* 镜像翻转 */
+            pointer-events: none;
+        }
+
+        .status-box {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status-item {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #444;
+            font-weight: bold;
+        }
+
+        /* 右侧面板：受手势控制的交互区域 */
+        #main-stage {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            background: radial-gradient(circle, #2c3e50 0%, #0f171e 100%);
+        }
+
+        #interactive-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 48px;
+            position: relative;
+            z-index: 3;
+        }
+
+        #shape-message {
+            position: relative;
+            z-index: 5;
+            min-height: 34px;
+            max-width: min(560px, 72vw);
+            padding: 12px 20px;
+            border-radius: 999px;
+            background: rgba(15, 23, 30, 0.82);
+            box-shadow: 0 12px 36px rgba(0,0,0,0.38);
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.35;
+            text-align: center;
+        }
+
+        /* 受控元素 */
+        #interactive-box {
+            position: relative;
+            z-index: 0;
+            width: 150px;
+            height: 150px;
+            background-color: #3498db;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: background-color 0.2s ease, border-radius 0.2s ease, clip-path 0.2s ease, transform 0.1s linear;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 64px;
+            line-height: 1.35;
+            padding: 0;
+            text-align: center;
+            white-space: pre-line;
+            user-select: none;
+        }
+
+        .info-overlay {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            width: 100%;
+            color: rgba(255,255,255,0.6);
+        }
+
+        #birthday-overlay {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            z-index: 20;
+        }
+
+        #birthday-overlay.show {
+            opacity: 1;
+        }
+
+        .birthday-card {
+            position: absolute;
+            left: 50%;
+            top: 52%;
+            transform: translate(-50%, -50%);
+            width: min(520px, 78vw);
+            padding: 28px;
+            border-radius: 28px;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            backdrop-filter: none;
+            text-align: center;
+            overflow: visible;
+        }
+
+        .cake {
+            position: absolute;
+            left: 50%;
+            bottom: -34px;
+            width: 220px;
+            height: 170px;
+            margin: 0;
+            opacity: 0.42;
+            transform: translateX(-50%) scale(1.28);
+            z-index: 0;
+        }
+
+        .cake-candle {
+            position: absolute;
+            left: 50%;
+            top: 4px;
+            width: 18px;
+            height: 56px;
+            transform: translateX(-50%);
+            border-radius: 8px;
+            background: repeating-linear-gradient(45deg, #fff 0 8px, #ff7675 8px 16px);
+            z-index: 3;
+        }
+
+        .flame {
+            position: absolute;
+            left: 50%;
+            top: -28px;
+            width: 26px;
+            height: 34px;
+            transform: translateX(-50%);
+            border-radius: 50% 50% 45% 45%;
+            background: radial-gradient(circle at 50% 65%, #fff7a8 0 24%, #ffd166 25% 55%, #ff7b00 56% 100%);
+            animation: flicker 0.35s infinite alternate;
+            box-shadow: 0 0 28px #ffb703;
+        }
+
+        .flame.out {
+            animation: none;
+            opacity: 0;
+            transform: translateX(-50%) scale(0.2);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .cake-top {
+            position: absolute;
+            left: 25px;
+            top: 58px;
+            width: 170px;
+            height: 48px;
+            border-radius: 26px 26px 12px 12px;
+            background: #ffeaa7;
+            z-index: 2;
+        }
+
+        .cake-body {
+            position: absolute;
+            left: 10px;
+            top: 88px;
+            width: 200px;
+            height: 82px;
+            border-radius: 24px;
+            background: linear-gradient(180deg, #ff7675, #d63031);
+        }
+
+        .birthday-title {
+            position: relative;
+            z-index: 2;
+            margin: 0 0 8px;
+            font-size: 42px;
+            color: #fff;
+            text-shadow: 0 4px 18px rgba(0,0,0,0.75);
+        }
+
+        .birthday-message {
+            position: relative;
+            z-index: 2;
+            margin: 0;
+            font-size: 20px;
+            color: rgba(255,255,255,0.88);
+            text-shadow: 0 3px 14px rgba(0,0,0,0.75);
+        }
+
+        #music-button {
+            position: relative;
+            z-index: 2;
+            display: none;
+            margin: 18px auto 0;
+            padding: 10px 18px;
+            border: 0;
+            border-radius: 999px;
+            background: #ffeaa7;
+            color: #2d3436;
+            font-weight: 700;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.24);
+        }
+
+        .firework {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--color);
+            animation: firework 1.1s ease-out forwards;
+            box-shadow:
+                0 -34px 0 var(--color),
+                24px -24px 0 var(--color),
+                34px 0 0 var(--color),
+                24px 24px 0 var(--color),
+                0 34px 0 var(--color),
+                -24px 24px 0 var(--color),
+                -34px 0 0 var(--color),
+                -24px -24px 0 var(--color);
+        }
+
+        .blessing {
+            position: absolute;
+            left: 50%;
+            bottom: -40px;
+            padding: 7px 13px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.18);
+            color: #fff;
+            font-weight: 600;
+            font-size: var(--size, 16px);
+            white-space: nowrap;
+            animation: floatBlessing var(--duration, 5.2s) linear forwards;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+        }
+
+        @keyframes flicker {
+            from { transform: translateX(-50%) scale(0.88) rotate(-4deg); }
+            to { transform: translateX(-50%) scale(1.08) rotate(4deg); }
+        }
+
+        @keyframes firework {
+            from { transform: scale(0.2); opacity: 1; }
+            to { transform: scale(2.4); opacity: 0; }
+        }
+
+        @keyframes floatBlessing {
+            from { transform: translateX(-50%) translateY(0); opacity: 0; }
+            10% { opacity: 1; }
+            85% { opacity: 1; }
+            to { transform: translateX(-50%) translateY(-72vh); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 左侧控制栏 -->
+    <div id="left-panel">
+        <h2>手势控制中心</h2>
+        <p id="camera-help" style="color: #aaa; font-size: 14px;">正在准备摄像头和手势识别模型，请在浏览器弹窗中允许摄像头权限。</p>
+        <button id="start-button" type="button" style="display: none; padding: 10px 12px; border: 0; border-radius: 8px; background: #3498db; color: #fff; font-weight: bold; cursor: pointer;">启动摄像头</button>
+        
+        <div class="video-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="output_canvas"></canvas>
+        </div>
+
+        <div class="status-box">
+            <div class="status-item">AI 模型状态: <span id="model-status" class="badge" style="background: #e74c3c;">加载中...</span></div>
+            <div class="status-item">摄像头状态: <span id="camera-status" class="badge" style="background: #e67e22;">等待授权</span></div>
+            <div class="status-item">当前手势: <span id="gesture-status" class="badge">未检测到手</span></div>
+            <div class="status-item">当前口型: <span id="mouth-status" class="badge">未检测到脸</span></div>
+            <div class="status-item">张开次数: <span id="distance-status" class="badge">0</span></div>
+        </div>
+    </div>
+
+    <!-- 右侧舞台 -->
+    <div id="main-stage">
+        <div id="interactive-wrapper">
+            <div id="shape-message">试试张开手指</div>
+            <div id="interactive-box">👋</div>
+        </div>
+        <div id="birthday-overlay">
+            <div class="birthday-card">
+                <div class="cake">
+                    <div class="cake-candle">
+                        <div id="candle-flame" class="flame"></div>
+                    </div>
+                    <div class="cake-top"></div>
+                    <div class="cake-body"></div>
+                </div>
+                <h1 class="birthday-title">生日快乐！</h1>
+                <p id="birthday-message" class="birthday-message">外公，吹一下蜡烛，许个愿吧。</p>
+                <button id="music-button" type="button">播放生日歌</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取 DOM 元素
+        const video = document.getElementById("webcam");
+        const canvasElement = document.getElementById("output_canvas");
+        const canvasCtx = canvasElement.getContext("2d");
+        const modelStatus = document.getElementById("model-status");
+        const cameraStatus = document.getElementById("camera-status");
+        const gestureStatus = document.getElementById("gesture-status");
+        const mouthStatus = document.getElementById("mouth-status");
+        const distanceStatus = document.getElementById("distance-status");
+        const shapeMessage = document.getElementById("shape-message");
+        const interactiveBox = document.getElementById("interactive-box");
+        const cameraHelp = document.getElementById("camera-help");
+        const startButton = document.getElementById("start-button");
+        const birthdayOverlay = document.getElementById("birthday-overlay");
+        const birthdayMessage = document.getElementById("birthday-message");
+        const candleFlame = document.getElementById("candle-flame");
+        const musicButton = document.getElementById("music-button");
+
+        let handLandmarker = undefined;
+        let faceLandmarker = undefined;
+        let runningMode = "VIDEO";
+        let lastVideoTime = -1;
+
+        // 当前受控元素的缩放比例
+        let currentScale = 1.0;
+        let openCount = 0;
+        let openFrameCount = 0;
+        let wasHandOpen = false;
+        let birthdayStarted = false;
+        let prayerConfirmed = false;
+        let prayerFrameCount = 0;
+        let candleBlown = false;
+        let blowFrameCount = 0;
+        let birthdayFireworkTimer = undefined;
+        let birthdayBlessingTimer = undefined;
+        let audioContext = undefined;
+        let birthdayMusicPlaying = false;
+        const openConfirmFrames = 5;
+        const maxOpenCount = 10;
+        const scaleStep = 0.25;
+        const maxScale = 1 + maxOpenCount * scaleStep;
+        const prayerConfirmFrames = 10;
+        const blowConfirmFrames = 8;
+        const openMessages = [
+            "猜猜十次之后会发生什么？",
+            "第二下来了，图案开始变身。",
+            "第三次，事情变得有点可疑。",
+            "第四次，它好像听懂了。",
+            "第五次，一半了，别停！",
+            "第六次，它正在偷偷变强。",
+            "第七次，惊喜越来越近了。",
+            "第八次，再来两下就揭晓。",
+            "第九次，最后一次准备好了吗？",
+            "生日快乐！"
+        ];
+        const shapeStyles = [
+            { name: "圆形", color: "#3498db", radius: "50%", clipPath: "none" },
+            { name: "三角形", color: "#9b59b6", radius: "0", clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" },
+            { name: "菱形", color: "#1abc9c", radius: "10px", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" },
+            { name: "胶囊", color: "#f39c12", radius: "999px", clipPath: "none" },
+            { name: "五边形", color: "#e67e22", radius: "12px", clipPath: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)" },
+            { name: "六边形", color: "#16a085", radius: "12px", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" },
+            { name: "星星", color: "#f1c40f", radius: "8px", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 35%)" },
+            { name: "箭头", color: "#2ecc71", radius: "10px", clipPath: "polygon(50% 0%, 100% 50%, 70% 50%, 70% 100%, 30% 100%, 30% 50%, 0% 50%)" },
+            { name: "闪电", color: "#e84393", radius: "8px", clipPath: "polygon(58% 0%, 20% 54%, 48% 54%, 38% 100%, 82% 42%, 54% 42%)" },
+            { name: "蛋糕", color: "#ff7675", radius: "24px", clipPath: "none" }
+        ];
+        const blessingMessages = [
+            "祝外公身体健康，笑口常开",
+            "琴棋书画样样有雅兴",
+            "愿外公天天都有好心情",
+            "一曲口琴，吹出满屋春风",
+            "剪出精彩视频，留下美好时光",
+            "花花草草都陪外公开心长寿",
+            "书画有风骨，日子有温度",
+            "祝外公福如东海，寿比南山",
+            "愿每一朵花都替我们祝福您",
+            "口琴一响，快乐登场",
+            "镜头记录热爱，岁月收藏笑容",
+            "愿外公的生活像花园一样热闹",
+            "琴声悠扬，棋局有趣，书画生香",
+            "祝外公心想事成，福寿安康",
+            "愿您每天都有新作品、新灵感",
+            "花开四季，幸福常在",
+            "我们都爱您",
+            "愿今天的惊喜被剪进最美的视频里",
+            "祝外公越活越精神，越过越开心"
+        ];
+
+        const visionSources = [
+            {
+                moduleUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8",
+                wasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.8/wasm"
+            },
+            {
+                moduleUrl: "https://unpkg.com/@mediapipe/tasks-vision@0.10.8",
+                wasmUrl: "https://unpkg.com/@mediapipe/tasks-vision@0.10.8/wasm"
+            }
+        ];
+
+        const handModelUrls = [
+            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task",
+            "https://github.com/sanderdesnaijer/mediapipe-model-mirrors/releases/download/v1/hand_landmarker.task"
+        ];
+
+        const faceModelUrls = [
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+            "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task",
+            "https://github.com/sanderdesnaijer/mediapipe-model-mirrors/releases/download/v1/face_landmarker.task"
+        ];
+
+        let visionModule = undefined;
+
+        async function loadVisionFileset() {
+            for (const source of visionSources) {
+                try {
+                    modelStatus.innerText = "加载库...";
+
+                    if (!visionModule) {
+                        visionModule = await import(source.moduleUrl);
+                    }
+
+                    return await visionModule.FilesetResolver.forVisionTasks(source.wasmUrl);
+                } catch (err) {
+                    visionModule = undefined;
+                    console.warn("MediaPipe 库加载失败，尝试备用地址: ", source.wasmUrl, err);
+                }
+            }
+
+            throw new Error("MediaPipe JS/WASM 加载失败");
+        }
+
+        async function createHandLandmarker(vision) {
+            let lastError;
+
+            for (const modelUrl of handModelUrls) {
+                for (const delegate of ["GPU", "CPU"]) {
+                    try {
+                        modelStatus.innerText = delegate === "GPU" ? "加载模型..." : "尝试 CPU...";
+
+                        return await visionModule.HandLandmarker.createFromOptions(vision, {
+                            baseOptions: {
+                                modelAssetPath: modelUrl,
+                                delegate: delegate
+                            },
+                            runningMode: runningMode,
+                            numHands: 2 // 生日惊喜阶段需要识别双手合十
+                        });
+                    } catch (err) {
+                        lastError = err;
+                        console.warn("手势模型加载失败，尝试备用配置: ", { modelUrl, delegate }, err);
+                    }
+                }
+            }
+
+            throw lastError || new Error("手势模型加载失败");
+        }
+
+        async function createFaceLandmarker(vision) {
+            let lastError;
+
+            for (const modelUrl of faceModelUrls) {
+                for (const delegate of ["GPU", "CPU"]) {
+                    try {
+                        modelStatus.innerText = delegate === "GPU" ? "加载脸部模型..." : "脸部模型 CPU...";
+
+                        return await visionModule.FaceLandmarker.createFromOptions(vision, {
+                            baseOptions: {
+                                modelAssetPath: modelUrl,
+                                delegate: delegate
+                            },
+                            runningMode: runningMode,
+                            numFaces: 1,
+                            outputFaceBlendshapes: true
+                        });
+                    } catch (err) {
+                        lastError = err;
+                        console.warn("脸部模型加载失败，尝试备用配置: ", { modelUrl, delegate }, err);
+                    }
+                }
+            }
+
+            throw lastError || new Error("脸部模型加载失败");
+        }
+
+        function updateInteractiveBox() {
+            const shapeIndex = Math.max(0, Math.min(openCount - 1, shapeStyles.length - 1));
+            const shape = openCount > 0 ? shapeStyles[shapeIndex] : {
+                name: "方块",
+                color: "#3498db",
+                radius: "16px",
+                clipPath: "none"
+            };
+
+            interactiveBox.style.transform = `scale(${currentScale})`;
+            interactiveBox.style.backgroundColor = shape.color;
+            interactiveBox.style.borderRadius = shape.radius;
+            interactiveBox.style.clipPath = shape.clipPath;
+            interactiveBox.style.fontSize = openCount >= maxOpenCount ? "72px" : "64px";
+
+            if (openCount >= maxOpenCount) {
+                shapeMessage.innerText = "";
+                shapeMessage.style.display = "none";
+                interactiveBox.innerText = "";
+                interactiveBox.style.opacity = "0";
+                startBirthdaySurprise();
+            } else if (openCount > 0) {
+                shapeMessage.style.display = "block";
+                shapeMessage.innerText = openMessages[openCount - 1];
+                interactiveBox.innerText = "";
+                interactiveBox.style.opacity = "1";
+            } else {
+                shapeMessage.style.display = "block";
+                shapeMessage.innerText = "试试张开手指";
+                interactiveBox.innerText = "👋";
+                interactiveBox.style.opacity = "1";
+            }
+        }
+
+        function startBirthdaySurprise() {
+            if (birthdayStarted) {
+                return;
+            }
+
+            birthdayStarted = true;
+            birthdayOverlay.classList.add("show");
+            birthdayMessage.innerText = "外公，请先双手合十，许个愿。";
+            playBirthdayMusic();
+
+            for (let i = 0; i < 5; i += 1) {
+                setTimeout(createFirework, i * 260);
+            }
+
+            for (let i = 0; i < 8; i += 1) {
+                setTimeout(createBlessing, i * 160);
+            }
+
+            birthdayFireworkTimer = setInterval(createFirework, 1200);
+            birthdayBlessingTimer = setInterval(() => {
+                createBlessing();
+                setTimeout(createBlessing, 180);
+                setTimeout(createBlessing, 360);
+            }, 720);
+        }
+
+        async function playBirthdayMusic() {
+            if (birthdayMusicPlaying) {
+                return;
+            }
+
+            try {
+                audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+
+                if (audioContext.state === "suspended") {
+                    await audioContext.resume();
+                }
+
+                birthdayMusicPlaying = true;
+                musicButton.style.display = "none";
+                scheduleBirthdayMelody(audioContext);
+            } catch (err) {
+                console.warn("生日歌自动播放被浏览器拦截，需要点击按钮播放: ", err);
+                musicButton.style.display = "inline-block";
+            }
+        }
+
+        function scheduleBirthdayMelody(context) {
+            const notes = {
+                C4: 261.63,
+                D4: 293.66,
+                E4: 329.63,
+                F4: 349.23,
+                G4: 392.00,
+                A4: 440.00,
+                AS4: 466.16,
+                C5: 523.25
+            };
+            const melody = [
+                ["C4", 0.35], ["C4", 0.2], ["D4", 0.5], ["C4", 0.5], ["F4", 0.5], ["E4", 0.9],
+                ["C4", 0.35], ["C4", 0.2], ["D4", 0.5], ["C4", 0.5], ["G4", 0.5], ["F4", 0.9],
+                ["C4", 0.35], ["C4", 0.2], ["C5", 0.5], ["A4", 0.5], ["F4", 0.5], ["E4", 0.5], ["D4", 0.9],
+                ["AS4", 0.35], ["AS4", 0.2], ["A4", 0.5], ["F4", 0.5], ["G4", 0.5], ["F4", 1.1]
+            ];
+            let startAt = context.currentTime + 0.08;
+
+            melody.forEach(([note, duration]) => {
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.type = "triangle";
+                oscillator.frequency.value = notes[note];
+                gain.gain.setValueAtTime(0.0001, startAt);
+                gain.gain.exponentialRampToValueAtTime(0.18, startAt + 0.03);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration * 0.92);
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                oscillator.start(startAt);
+                oscillator.stop(startAt + duration);
+                startAt += duration;
+            });
+        }
+
+        function createFirework() {
+            const firework = document.createElement("div");
+            const colors = ["#ff7675", "#74b9ff", "#ffeaa7", "#55efc4", "#fd79a8"];
+            firework.className = "firework";
+            firework.style.left = `${15 + Math.random() * 70}%`;
+            firework.style.top = `${12 + Math.random() * 45}%`;
+            firework.style.setProperty("--color", colors[Math.floor(Math.random() * colors.length)]);
+            birthdayOverlay.appendChild(firework);
+            setTimeout(() => firework.remove(), 1200);
+        }
+
+        function createBlessing() {
+            const blessing = document.createElement("div");
+            const colors = ["rgba(255,255,255,0.20)", "rgba(255,234,167,0.22)", "rgba(116,185,255,0.22)", "rgba(85,239,196,0.20)", "rgba(253,121,168,0.22)"];
+            const duration = 4.4 + Math.random() * 2.4;
+            blessing.className = "blessing";
+            blessing.innerText = blessingMessages[Math.floor(Math.random() * blessingMessages.length)];
+            blessing.style.left = `${12 + Math.random() * 76}%`;
+            blessing.style.background = colors[Math.floor(Math.random() * colors.length)];
+            blessing.style.setProperty("--size", `${14 + Math.random() * 6}px`);
+            blessing.style.setProperty("--duration", `${duration}s`);
+            birthdayOverlay.appendChild(blessing);
+            setTimeout(() => blessing.remove(), (duration + 0.3) * 1000);
+        }
+
+        function handlePrayerGesture(handLandmarks) {
+            if (!birthdayStarted || prayerConfirmed || candleBlown) {
+                return;
+            }
+
+            if (!handLandmarks || handLandmarks.length < 2) {
+                prayerFrameCount = 0;
+                birthdayMessage.innerText = "外公，请先双手合十，许个愿。";
+                return;
+            }
+
+            const [firstHand, secondHand] = handLandmarks;
+            const firstPalm = firstHand[0];
+            const secondPalm = secondHand[0];
+            const firstIndexTip = firstHand[8];
+            const secondIndexTip = secondHand[8];
+            const palmDistance = Math.hypot(firstPalm.x - secondPalm.x, firstPalm.y - secondPalm.y);
+            const fingertipDistance = Math.hypot(firstIndexTip.x - secondIndexTip.x, firstIndexTip.y - secondIndexTip.y);
+            const handsTogether = palmDistance < 0.18 && fingertipDistance < 0.2;
+
+            if (handsTogether) {
+                prayerFrameCount += 1;
+                birthdayMessage.innerText = "检测到双手合十了，保持一下...";
+            } else {
+                prayerFrameCount = 0;
+                birthdayMessage.innerText = "把两只手靠近，双手合十许个愿。";
+            }
+
+            if (prayerFrameCount >= prayerConfirmFrames) {
+                prayerConfirmed = true;
+                birthdayMessage.innerText = "愿望已悄悄记下，现在吹蜡烛吧。";
+                gestureStatus.innerText = "可以吹蜡烛";
+                gestureStatus.style.backgroundColor = "#00cec9";
+            }
+        }
+
+        function blowOutCandle() {
+            if (candleBlown) {
+                return;
+            }
+
+            candleBlown = true;
+            candleFlame.classList.add("out");
+            birthdayMessage.innerText = "愿望已收到，祝外公心想事成、福寿安康！";
+            gestureStatus.innerText = "愿望已收到";
+            gestureStatus.style.backgroundColor = "#00cec9";
+
+            if (birthdayFireworkTimer) {
+                clearInterval(birthdayFireworkTimer);
+            }
+
+            if (birthdayBlessingTimer) {
+                clearInterval(birthdayBlessingTimer);
+            }
+
+            for (let i = 0; i < 32; i += 1) {
+                setTimeout(createFirework, i * 110);
+            }
+
+            for (let i = 0; i < 24; i += 1) {
+                setTimeout(createBlessing, i * 90);
+            }
+        }
+
+        // 1. 初始化 MediaPipe 手势识别模型
+        async function initializeModel() {
+            try {
+                const vision = await loadVisionFileset();
+                handLandmarker = await createHandLandmarker(vision);
+                faceLandmarker = await createFaceLandmarker(vision);
+                
+                modelStatus.innerText = "运行中";
+                modelStatus.style.backgroundColor = "#2ecc71";
+                return true;
+            } catch (err) {
+                console.error("AI 模型加载失败: ", err);
+                modelStatus.innerText = "加载失败";
+                modelStatus.style.backgroundColor = "#e74c3c";
+                cameraHelp.innerText = "AI 模型加载失败，请检查网络是否能访问 jsDelivr、unpkg、Google Storage 或 GitHub Release。";
+                return false;
+            }
+        }
+
+        // 2. 唤起摄像头
+        async function startCamera() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                cameraStatus.innerText = "不支持";
+                cameraStatus.style.backgroundColor = "#e74c3c";
+                cameraHelp.innerText = "当前浏览器不支持摄像头 API，请使用新版 Chrome、Edge 或 Firefox。";
+                startButton.style.display = "inline-block";
+                return false;
+            }
+
+            if (!window.isSecureContext) {
+                cameraStatus.innerText = "需安全环境";
+                cameraStatus.style.backgroundColor = "#e74c3c";
+                cameraHelp.innerText = "摄像头只能在 https、localhost 或部分浏览器允许的本地文件中使用。建议用本地服务器打开此页面。";
+                return false;
+            }
+
+            cameraStatus.innerText = "请求权限";
+            cameraStatus.style.backgroundColor = "#e67e22";
+
+            const constraints = { video: { width: 640, height: 480 } };
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+                await video.play();
+                cameraStatus.innerText = "运行中";
+                cameraStatus.style.backgroundColor = "#2ecc71";
+                cameraHelp.innerText = "将手展现在摄像头前即可开始交互。";
+                startButton.style.display = "none";
+                return true;
+            } catch (err) {
+                console.error("摄像头开启失败: ", err);
+                cameraStatus.innerText = "开启失败";
+                cameraStatus.style.backgroundColor = "#e74c3c";
+                cameraHelp.innerText = err.name === "NotAllowedError"
+                    ? "摄像头权限被拒绝，请在浏览器地址栏重新允许摄像头权限后再试。"
+                    : "摄像头开启失败，请确认没有被其他程序占用，并检查浏览器权限设置。";
+                startButton.style.display = "inline-block";
+                return false;
+            }
+        }
+
+        async function startApp() {
+            startButton.style.display = "none";
+            const [modelReady, cameraReady] = await Promise.all([
+                handLandmarker && faceLandmarker ? Promise.resolve(true) : initializeModel(),
+                startCamera()
+            ]);
+
+            if (modelReady && cameraReady) {
+                predictWebcam();
+            }
+        }
+
+        // 3. 核心循环：实时预测与特征点绘制
+        async function predictWebcam() {
+            if (!handLandmarker || !faceLandmarker || video.readyState < 2) {
+                requestAnimationFrame(predictWebcam);
+                return;
+            }
+
+            // 确保 Canvas 分辨率与视频一致
+            if (canvasElement.width !== video.videoWidth) {
+                canvasElement.width = video.videoWidth;
+                canvasElement.height = video.videoHeight;
+            }
+
+            let startTimeMs = performance.now();
+            
+            // 如果视频正在播放新的一帧
+            if (lastVideoTime !== video.currentTime) {
+                lastVideoTime = video.currentTime;
+                const handResults = handLandmarker.detectForVideo(video, startTimeMs);
+                const faceResults = faceLandmarker.detectForVideo(video, startTimeMs);
+
+                // 清空上一帧的画布
+                canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+                if (handResults.landmarks && handResults.landmarks.length > 0) {
+                    const landmarks = handResults.landmarks[0]; // 第一只手的数据
+                    
+                    // 绘制手部骨架蓝图
+                    drawHandSkeleton(landmarks);
+                    
+                    // 执行手势识别和交互逻辑
+                    handleGestureLogic(landmarks);
+                } else {
+                    gestureStatus.innerText = "未检测到手";
+                    gestureStatus.style.backgroundColor = "#444";
+                    openFrameCount = 0;
+                    wasHandOpen = false;
+                }
+
+                handlePrayerGesture(handResults.landmarks);
+
+                handleMouthShape(faceResults);
+            }
+
+            // 循环调用
+            requestAnimationFrame(predictWebcam);
+        }
+
+        // 4. 简单的手势算法逻辑
+        function handleGestureLogic(landmarks) {
+            // 获取关键点的 3D 坐标
+            const indexTip = landmarks[8];   // 食指尖
+            const middleTip = landmarks[12]; // 中指尖
+            const ringTip = landmarks[16];  // 无名指尖
+            const pinkyTip = landmarks[20];   // 小指尖
+
+            // 关节基准点（用于判断手指是否弯曲）
+            const indexPip = landmarks[6];   // 食指第二关节
+            const middlePip = landmarks[10]; // 中指第二关节
+            const ringPip = landmarks[14];   // 无名指第二关节
+            const pinkyPip = landmarks[18];  // 小指第二关节
+
+            // --- 逻辑 A: 判断是否为握拳 (Fist) ---
+            // 如果食指、中指、无名指的指尖都低于食指的第二关节（在 Y 轴上，由于坐标原点在左上角，数值大代表位置低）
+            const isFist = (indexTip.y > indexPip.y) && (middleTip.y > indexPip.y) && (ringTip.y > indexPip.y);
+
+            if (openCount >= maxOpenCount) {
+                gestureStatus.innerText = "惊喜解锁";
+                gestureStatus.style.backgroundColor = "#e84393";
+                distanceStatus.innerText = `${openCount}/${maxOpenCount}`;
+                updateInteractiveBox();
+                return;
+            }
+
+            if (isFist) {
+                openFrameCount = 0;
+                wasHandOpen = false;
+                gestureStatus.innerText = "握拳 ✊";
+                gestureStatus.style.backgroundColor = "#e74c3c";
+                updateInteractiveBox();
+                return; // 握拳状态下不触发缩放
+            }
+
+            // --- 逻辑 B: 手指从收回到张开时，累计放大方块 ---
+            const isOpenHand =
+                indexTip.y < indexPip.y &&
+                middleTip.y < middlePip.y &&
+                ringTip.y < ringPip.y &&
+                pinkyTip.y < pinkyPip.y;
+
+            if (isOpenHand) {
+                openFrameCount += 1;
+
+                if (openFrameCount >= openConfirmFrames && !wasHandOpen) {
+                    openCount = Math.min(openCount + 1, maxOpenCount);
+                    wasHandOpen = true;
+                    currentScale = Math.min(1 + openCount * scaleStep, maxScale);
+                }
+
+                gestureStatus.innerText = "张开 👋";
+                gestureStatus.style.backgroundColor = "#2ecc71";
+                updateInteractiveBox();
+            } else {
+                openFrameCount = 0;
+                wasHandOpen = false;
+                gestureStatus.innerText = "收回手指";
+                gestureStatus.style.backgroundColor = "#f1c40f";
+                if (openCount === 0) {
+                    shapeMessage.innerText = "先收回手指，再张开试试";
+                    interactiveBox.innerText = "👋";
+                } else {
+                    updateInteractiveBox();
+                }
+            }
+
+            distanceStatus.innerText = `${openCount}/${maxOpenCount}`;
+        }
+
+        // 5. 使用 Face Blendshapes 粗略判断口型
+        function handleMouthShape(results) {
+            const blendshapes = results.faceBlendshapes;
+
+            if (!blendshapes || blendshapes.length === 0) {
+                mouthStatus.innerText = "未检测到脸";
+                mouthStatus.style.backgroundColor = "#444";
+                blowFrameCount = 0;
+                return;
+            }
+
+            const scores = Object.fromEntries(
+                blendshapes[0].categories.map((item) => [item.categoryName, item.score])
+            );
+
+            const jawOpen = scores.jawOpen || 0;
+            const mouthFunnel = scores.mouthFunnel || 0;
+            const mouthPucker = scores.mouthPucker || 0;
+            const mouthClose = scores.mouthClose || 0;
+            const smile = ((scores.mouthSmileLeft || 0) + (scores.mouthSmileRight || 0)) / 2;
+
+            let label = "自然";
+            let confidence = Math.max(1 - jawOpen, mouthClose);
+            let color = "#2ecc71";
+
+            if (jawOpen > 0.45) {
+                label = "张嘴 A";
+                confidence = jawOpen;
+                color = "#e74c3c";
+            } else if (mouthFunnel > 0.35) {
+                label = "圆唇 O";
+                confidence = mouthFunnel;
+                color = "#9b59b6";
+            } else if (mouthPucker > 0.35) {
+                label = "嘟嘴 U";
+                confidence = mouthPucker;
+                color = "#f1c40f";
+            } else if (smile > 0.35) {
+                label = "微笑 E";
+                confidence = smile;
+                color = "#3498db";
+            } else if (mouthClose > 0.35 || jawOpen < 0.08) {
+                label = "闭嘴";
+                confidence = Math.max(mouthClose, 1 - jawOpen);
+                color = "#95a5a6";
+            }
+
+            if (birthdayStarted && !prayerConfirmed && !candleBlown) {
+                blowFrameCount = 0;
+            } else if (birthdayStarted && prayerConfirmed && !candleBlown) {
+                if (jawOpen > 0.45 || mouthFunnel > 0.35) {
+                    blowFrameCount += 1;
+                    birthdayMessage.innerText = "检测到吹蜡烛了，再坚持一下...";
+                } else {
+                    blowFrameCount = 0;
+                }
+
+                if (blowFrameCount >= blowConfirmFrames) {
+                    blowOutCandle();
+                }
+            }
+
+            mouthStatus.innerText = `${label} ${confidence.toFixed(2)}`;
+            mouthStatus.style.backgroundColor = color;
+        }
+
+        // 6. 在 Canvas 上绘制手部骨架线条和特征点
+        function drawHandSkeleton(landmarks) {
+            canvasCtx.fillStyle = "#2ecc71";
+            canvasCtx.strokeStyle = "#ffffff";
+            canvasCtx.lineWidth = 3;
+
+            // 绘制特征点
+            for (const landmark of landmarks) {
+                const x = landmark.x * canvasElement.width;
+                const y = landmark.y * canvasElement.height;
+                canvasCtx.beginPath();
+                canvasCtx.arc(x, y, 5, 0, 2 * Math.PI);
+                canvasCtx.fill();
+            }
+
+            // 绘制指关节连接线（简易连线方案）
+            const connections = [
+                [0,1],[1,2],[2,3],[3,4],        // 大拇指
+                [0,5],[5,6],[6,7],[7,8],        // 食指
+                [9,10],[10,11],[11,12],         // 中指
+                [13,14],[14,15],[15,16],        // 无名指
+                [0,17],[17,18],[18,19],[19,20], // 小指
+                [5,9],[9,13],[13,17]            // 手掌根部连接
+            ];
+
+            for (const [start, end] of connections) {
+                const startNode = landmarks[start];
+                const endNode = landmarks[end];
+                canvasCtx.beginPath();
+                canvasCtx.moveTo(startNode.x * canvasElement.width, startNode.y * canvasElement.height);
+                canvasCtx.lineTo(endNode.x * canvasElement.width, endNode.y * canvasElement.height);
+                canvasCtx.stroke();
+            }
+        }
+
+        // 启动程序
+        startButton.addEventListener("click", startApp);
+        musicButton.addEventListener("click", playBirthdayMusic);
+        startApp();
+    </script>
+</body>
+</html>
