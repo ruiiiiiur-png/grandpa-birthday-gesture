@@ -318,6 +318,52 @@
             85% { opacity: 1; }
             to { transform: translateX(-50%) translateY(-72vh); opacity: 0; }
         }
+
+        @media (max-width: 768px) {
+            body {
+                display: block;
+                height: 100vh;
+                height: 100svh;
+            }
+
+            #left-panel {
+                display: none;
+            }
+
+            #main-stage {
+                width: 100vw;
+                height: 100vh;
+                height: 100svh;
+            }
+
+            #interactive-wrapper {
+                gap: 42px;
+                padding: 20px;
+            }
+
+            #shape-message {
+                max-width: 82vw;
+                font-size: 20px;
+            }
+
+            #interactive-box {
+                width: 130px;
+                height: 130px;
+            }
+
+            .birthday-card {
+                width: min(88vw, 420px);
+                padding: 20px;
+            }
+
+            .birthday-title {
+                font-size: 38px;
+            }
+
+            .birthday-message {
+                font-size: 18px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -593,6 +639,8 @@
             birthdayStarted = true;
             birthdayOverlay.classList.add("show");
             birthdayMessage.innerText = "外公，请先双手合十，许个愿。";
+            musicButton.style.display = "inline-block";
+            musicButton.innerText = "播放生日歌";
             playBirthdayMusic();
 
             for (let i = 0; i < 5; i += 1) {
@@ -623,9 +671,19 @@
                     await audioContext.resume();
                 }
 
+                if (audioContext.state !== "running") {
+                    musicButton.style.display = "inline-block";
+                    return;
+                }
+
                 birthdayMusicPlaying = true;
-                musicButton.style.display = "none";
-                scheduleBirthdayMelody(audioContext);
+                musicButton.innerText = "播放中...";
+                const melodyDuration = scheduleBirthdayMelody(audioContext);
+                setTimeout(() => {
+                    birthdayMusicPlaying = false;
+                    musicButton.innerText = "再播放生日歌";
+                    musicButton.style.display = "inline-block";
+                }, melodyDuration * 1000);
             } catch (err) {
                 console.warn("生日歌自动播放被浏览器拦截，需要点击按钮播放: ", err);
                 musicButton.style.display = "inline-block";
@@ -650,6 +708,7 @@
                 ["AS4", 0.35], ["AS4", 0.2], ["A4", 0.5], ["F4", 0.5], ["G4", 0.5], ["F4", 1.1]
             ];
             let startAt = context.currentTime + 0.08;
+            let totalDuration = 0.08;
 
             melody.forEach(([note, duration]) => {
                 const oscillator = context.createOscillator();
@@ -664,7 +723,10 @@
                 oscillator.start(startAt);
                 oscillator.stop(startAt + duration);
                 startAt += duration;
+                totalDuration += duration;
             });
+
+            return totalDuration;
         }
 
         function createFirework() {
