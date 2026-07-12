@@ -291,14 +291,20 @@
             position: absolute;
             left: 50%;
             bottom: -40px;
-            padding: 7px 13px;
+            box-sizing: border-box;
+            width: max-content;
+            max-width: min(88vw, 720px);
+            padding: 9px 16px;
             border-radius: 999px;
             background: rgba(255,255,255,0.18);
             color: #fff;
-            font-weight: 600;
-            font-size: var(--size, 16px);
-            white-space: nowrap;
-            animation: floatBlessing var(--duration, 9s) linear forwards;
+            font-weight: 700;
+            font-size: var(--size, 22px);
+            line-height: 1.35;
+            text-align: center;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            animation: floatBlessing var(--duration, 8.5s) linear forwards;
             box-shadow: 0 8px 28px rgba(0,0,0,0.18);
         }
 
@@ -349,6 +355,11 @@
             #interactive-box {
                 width: 130px;
                 height: 130px;
+            }
+
+            .blessing {
+                max-width: 90vw;
+                font-size: var(--size, 22px);
             }
 
             .birthday-card {
@@ -662,7 +673,7 @@
             createBlessing();
 
             birthdayFireworkTimer = setInterval(createFirework, 1200);
-            birthdayBlessingTimer = setInterval(createBlessing, 3600);
+            birthdayBlessingTimer = setInterval(createBlessing, 1400);
         }
 
         async function playBirthdayMusic() {
@@ -749,12 +760,12 @@
         function createBlessing() {
             const blessing = document.createElement("div");
             const colors = ["rgba(255,255,255,0.20)", "rgba(255,234,167,0.22)", "rgba(116,185,255,0.22)", "rgba(85,239,196,0.20)", "rgba(253,121,168,0.22)"];
-            const duration = 8 + Math.random() * 2.5;
+            const duration = 8.2 + Math.random() * 1.2;
             blessing.className = "blessing";
             blessing.innerText = blessingMessages[Math.floor(Math.random() * blessingMessages.length)];
-            blessing.style.left = `${12 + Math.random() * 76}%`;
+            blessing.style.left = "50%";
             blessing.style.background = colors[Math.floor(Math.random() * colors.length)];
-            blessing.style.setProperty("--size", `${14 + Math.random() * 6}px`);
+            blessing.style.setProperty("--size", `${21 + Math.random() * 4}px`);
             blessing.style.setProperty("--duration", `${duration}s`);
             birthdayOverlay.appendChild(blessing);
             setTimeout(() => blessing.remove(), (duration + 0.3) * 1000);
