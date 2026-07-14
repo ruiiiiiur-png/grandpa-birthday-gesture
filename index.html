@@ -238,16 +238,16 @@
             transform: scale(1.08);
         }
 
-        /* 受控元素 */
+        /* 互动提示：保留简单的挥手表情，不再展示几何图形 */
         #interactive-box {
             position: relative;
             z-index: 0;
             width: 150px;
             height: 150px;
-            background-color: #3498db;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            transition: background-color 0.2s ease, border-radius 0.2s ease, clip-path 0.2s ease, transform 0.1s linear;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            transition: opacity 0.2s ease, transform 0.1s linear;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -590,6 +590,7 @@
         const distanceStatus = document.getElementById("distance-status");
         const shapeMessage = document.getElementById("shape-message");
         const interactiveBox = document.getElementById("interactive-box");
+        const progressPanel = document.getElementById("progress-panel");
         const progressText = document.getElementById("progress-text");
         const progressFill = document.getElementById("progress-fill");
         const progressRoses = document.querySelectorAll("#progress-roses span");
@@ -607,8 +608,6 @@
         let runningMode = "VIDEO";
         let lastVideoTime = -1;
 
-        // 当前受控元素的缩放比例
-        let currentScale = 1.0;
         let interactionProgress = 0;
         let openCount = 0;
         let openFrameCount = 0;
@@ -630,26 +629,12 @@
         const openCooldownFrames = 12;
         const progressStep = 1.15;
         const maxOpenCount = 3;
-        const scaleStep = 0.25;
-        const maxScale = 1 + maxOpenCount * scaleStep;
         const prayerConfirmFrames = 10;
         const blowConfirmFrames = 8;
         const openMessages = [
             "看见你啦，惊喜正在靠近。",
             "再挥一下，马上揭晓。",
             "外公生日快乐！"
-        ];
-        const shapeStyles = [
-            { name: "圆形", color: "#3498db", radius: "50%", clipPath: "none" },
-            { name: "三角形", color: "#9b59b6", radius: "0", clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)" },
-            { name: "菱形", color: "#1abc9c", radius: "10px", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" },
-            { name: "胶囊", color: "#f39c12", radius: "999px", clipPath: "none" },
-            { name: "五边形", color: "#e67e22", radius: "12px", clipPath: "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)" },
-            { name: "六边形", color: "#16a085", radius: "12px", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" },
-            { name: "星星", color: "#f1c40f", radius: "8px", clipPath: "polygon(50% 0%, 61% 35%, 98% 35%, 68% 56%, 79% 91%, 50% 70%, 21% 91%, 32% 56%, 2% 35%, 39% 35%)" },
-            { name: "箭头", color: "#2ecc71", radius: "10px", clipPath: "polygon(50% 0%, 100% 50%, 70% 50%, 70% 100%, 30% 100%, 30% 50%, 0% 50%)" },
-            { name: "闪电", color: "#e84393", radius: "8px", clipPath: "polygon(58% 0%, 20% 54%, 48% 54%, 38% 100%, 82% 42%, 54% 42%)" },
-            { name: "蛋糕", color: "#ff7675", radius: "24px", clipPath: "none" }
         ];
         const blessingMessages = [
             "祝外公身体健康，笑口常开",
@@ -784,34 +769,25 @@
 
         function updateInteractiveBox() {
             openCount = getActiveRoseCount();
-            const shapeIndex = Math.max(0, Math.min(openCount - 1, shapeStyles.length - 1));
-            const shape = openCount > 0 ? shapeStyles[shapeIndex] : {
-                name: "方块",
-                color: "#3498db",
-                radius: "16px",
-                clipPath: "none"
-            };
-
-            interactiveBox.style.transform = `scale(${currentScale})`;
-            interactiveBox.style.backgroundColor = shape.color;
-            interactiveBox.style.borderRadius = shape.radius;
-            interactiveBox.style.clipPath = shape.clipPath;
-            interactiveBox.style.fontSize = openCount >= maxOpenCount ? "72px" : "64px";
+            interactiveBox.style.transform = openCount > 0 ? "scale(1.08)" : "scale(1)";
             updateProgressBar();
 
             if (interactionProgress >= 100) {
                 shapeMessage.innerText = "";
                 shapeMessage.style.display = "none";
+                progressPanel.style.display = "none";
                 interactiveBox.innerText = "";
                 interactiveBox.style.opacity = "0";
                 startBirthdaySurprise();
             } else if (openCount > 0) {
                 shapeMessage.style.display = "block";
+                progressPanel.style.display = "block";
                 shapeMessage.innerText = openMessages[openCount - 1];
-                interactiveBox.innerText = "";
+                interactiveBox.innerText = "👋";
                 interactiveBox.style.opacity = "1";
             } else {
                 shapeMessage.style.display = "block";
+                progressPanel.style.display = "block";
                 shapeMessage.innerText = "试试挥挥手，看看会发生什么";
                 interactiveBox.innerText = "👋";
                 interactiveBox.style.opacity = "1";
@@ -889,7 +865,6 @@
         function openBirthdayDirectly() {
             interactionProgress = 100;
             openCount = maxOpenCount;
-            currentScale = maxScale;
             updateInteractiveBox();
         }
 
@@ -1289,7 +1264,6 @@
                     openCount = getActiveRoseCount();
                     wasHandOpen = true;
                     openCooldownFrameCount = Math.min(openCooldownFrameCount, openCooldownFrames);
-                    currentScale = Math.min(1 + (interactionProgress / 100) * maxOpenCount * scaleStep, maxScale);
                 }
 
                 gestureStatus.innerText = "看到挥手";
