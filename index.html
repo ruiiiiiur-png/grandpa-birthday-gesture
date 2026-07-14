@@ -238,7 +238,7 @@
             transform: scale(1.08);
         }
 
-        /* 互动提示：保留简单的挥手表情，不再展示几何图形 */
+        /* 互动提示：玫瑰随惊喜进度慢慢长大 */
         #interactive-box {
             position: relative;
             z-index: 0;
@@ -560,7 +560,7 @@
                     </div>
                 </div>
             </div>
-            <div id="interactive-box">👋</div>
+            <div id="interactive-box">🌹</div>
         </div>
         <div id="birthday-overlay">
             <div class="birthday-card">
@@ -769,7 +769,8 @@
 
         function updateInteractiveBox() {
             openCount = getActiveRoseCount();
-            interactiveBox.style.transform = openCount > 0 ? "scale(1.08)" : "scale(1)";
+            const roseScale = 1 + (interactionProgress / 100) * 0.9;
+            interactiveBox.style.transform = `scale(${roseScale})`;
             updateProgressBar();
 
             if (interactionProgress >= 100) {
@@ -783,13 +784,13 @@
                 shapeMessage.style.display = "block";
                 progressPanel.style.display = "block";
                 shapeMessage.innerText = openMessages[openCount - 1];
-                interactiveBox.innerText = "👋";
+                interactiveBox.innerText = "🌹";
                 interactiveBox.style.opacity = "1";
             } else {
                 shapeMessage.style.display = "block";
                 progressPanel.style.display = "block";
                 shapeMessage.innerText = "试试挥挥手，看看会发生什么";
-                interactiveBox.innerText = "👋";
+                interactiveBox.innerText = "🌹";
                 interactiveBox.style.opacity = "1";
             }
         }
@@ -1277,7 +1278,7 @@
                 gestureStatus.style.backgroundColor = "#f1c40f";
                 if (openCount === 0) {
                     shapeMessage.innerText = "把手放进镜头，张开手掌试试";
-                    interactiveBox.innerText = "👋";
+                    interactiveBox.innerText = "🌹";
                 } else {
                     updateInteractiveBox();
                 }
