@@ -128,6 +128,11 @@
             animation-fill-mode: both;
         }
 
+        .rose.heart {
+            left: calc(50% + var(--dx) * min(76vw, 48vh));
+            top: calc(58% + var(--dy) * min(76vw, 48vh));
+        }
+
         @keyframes bloomRose {
             to {
                 opacity: 0.95;
@@ -292,7 +297,7 @@
         .birthday-card {
             position: absolute;
             left: 50%;
-            top: 52%;
+            top: 24%;
             transform: translate(-50%, -50%);
             width: min(520px, 78vw);
             padding: 28px;
@@ -466,7 +471,7 @@
             from { transform: translateX(-50%) translateY(0); opacity: 0; }
             10% { opacity: 1; }
             85% { opacity: 1; }
-            to { transform: translateX(-50%) translateY(-72vh); opacity: 0; }
+            to { transform: translateX(-50%) translateY(-42vh); opacity: 0; }
         }
 
         @media (max-width: 768px) {
@@ -970,7 +975,7 @@
         function createBlessing() {
             const blessing = document.createElement("div");
             const colors = ["rgba(255,255,255,0.20)", "rgba(255,234,167,0.22)", "rgba(116,185,255,0.22)", "rgba(85,239,196,0.20)", "rgba(253,121,168,0.22)"];
-            const duration = 8.2 + Math.random() * 1.2;
+            const duration = 6.2 + Math.random() * 1.0;
             blessing.className = "blessing";
             blessing.innerText = blessingMessages[Math.floor(Math.random() * blessingMessages.length)];
             blessing.style.left = "50%";
@@ -988,10 +993,15 @@
             const size = options.size ?? (38 + Math.random() * 22);
             const rotate = options.rotate ?? (-24 + Math.random() * 48);
 
-            rose.className = `rose${options.garden ? " garden" : ""}`;
+            rose.className = `rose${options.garden ? " garden" : ""}${options.heart ? " heart" : ""}`;
             rose.innerText = "🌹";
-            rose.style.setProperty("--x", `${x}%`);
-            rose.style.setProperty("--y", `${y}%`);
+            if (options.heart) {
+                rose.style.setProperty("--dx", options.dx);
+                rose.style.setProperty("--dy", options.dy);
+            } else {
+                rose.style.setProperty("--x", `${x}%`);
+                rose.style.setProperty("--y", `${y}%`);
+            }
             rose.style.setProperty("--size", `${size}px`);
             rose.style.setProperty("--rotate", `${rotate}deg`);
 
@@ -1009,26 +1019,27 @@
             }
 
             roseGardenComplete = true;
-            const heartPoints = [
-                [38, 22], [62, 22],
-                [30, 27], [46, 28], [54, 28], [70, 27],
-                [24, 36], [36, 36], [48, 36], [52, 36], [64, 36], [76, 36],
-                [22, 46], [34, 46], [44, 46], [50, 46], [56, 46], [66, 46], [78, 46],
-                [27, 56], [39, 56], [50, 56], [61, 56], [73, 56],
-                [34, 66], [44, 66], [50, 66], [56, 66], [66, 66],
-                [40, 75], [50, 76], [60, 75],
-                [45, 84], [55, 84],
-                [50, 91]
-            ];
+            const pointCount = 42;
+            const heartPoints = Array.from({ length: pointCount }, (_, index) => {
+                const t = (index / pointCount) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
 
-            heartPoints.forEach(([x, y], index) => {
+                return {
+                    dx: (x / 34).toFixed(4),
+                    dy: (-y / 34).toFixed(4)
+                };
+            });
+
+            heartPoints.forEach(({ dx, dy }, index) => {
                 createRose(index, {
-                    x,
-                    y,
-                    size: 32 + Math.random() * 12,
+                    dx,
+                    dy,
+                    size: 30 + Math.random() * 8,
                     rotate: -16 + Math.random() * 32,
                     delay: index * 0.13,
-                    garden: true
+                    garden: true,
+                    heart: true
                 });
             });
         }
